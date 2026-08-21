@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messy CSS → Clean CSS</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+
+
+  <body>
+    
+    <h1>Messy CSS → Clean CSS</h1>
+
+    <div class="editor-wrapper">
+      <div class="editor-column">
+        <label for="input-css">
+          Messy CSS
+        </label>
+        <textarea id="input-css" placeholder="Paste your messy CSS here...">
+
+        </textarea>
+      </div>
+
+      <div class="editor-column">
+        <label for="output-css">
+          Clean CSS
+        </label>
+        <textarea id="output-css" readonly placeholder="Cleaned CSS will appear here..."></textarea>
+      </div>
+    </div>
+
+    <div class="api-key-section">
+      <label for="user-api-key">Your Gemini API key</label>
+      <input type="password" id="user-api-key" placeholder="Paste your Gemini API key here">
+    </div>
+
+    <button id="clean-btn">
+      Clean it up
+    </button>
+
+    <script src="script.js"></script>
+
+    
+  </body>
+</html>
