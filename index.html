@@ -7,9 +7,8 @@
     <link rel="stylesheet" href="style.css">
   </head>
 
-
   <body>
-    
+
     <h1>Messy CSS → Clean CSS</h1>
 
     <div class="editor-wrapper">
@@ -17,9 +16,7 @@
         <label for="input-css">
           Messy CSS
         </label>
-        <textarea id="input-css" placeholder="Paste your messy CSS here...">
-
-        </textarea>
+        <textarea id="input-css" placeholder="Paste your messy CSS here..."></textarea>
       </div>
 
       <div class="editor-column">
@@ -27,6 +24,8 @@
           Clean CSS
         </label>
         <textarea id="output-css" readonly placeholder="Cleaned CSS will appear here..."></textarea>
+        <button type="button" id="ask-ai-btn" class="secondary-btn" hidden>What's wrong? Ask AI</button>
+        <button type="button" id="fix-it-btn" class="secondary-btn" hidden>Fix it for me</button>
       </div>
     </div>
 
@@ -39,8 +38,8 @@
       Clean it up
     </button>
 
+    <script src="https://cdn.jsdelivr.net/npm/css-tree@3.1.0/dist/csstree.js"></script>
     <script src="script.js"></script>
 
-    
   </body>
 </html>
