@@ -36,23 +36,54 @@ textarea {
   resize: vertical;
 }
 
-#output-css {
+.output-code {
+  display: block;
+  font-family: monospace;
+  font-size: 14px;
+  height: 300px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
   background-color: #f7f7f7;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-#output-css.has-error {
+.output-code:empty::before {
+  content: attr(data-placeholder);
+  color: #999;
+}
+
+.output-code.has-error {
   color: #b3261e;
   background-color: #fdecea;
 }
 
-#output-css.has-warning {
+.output-code.has-warning {
   color: #8a6d00;
   background-color: #fff8e1;
 }
 
-/* Main "Clean it up" button only.
-   Kept as its own #id rule (rather than a generic `button {}` selector)
-   so it doesn't visually collide with the smaller secondary buttons below. */
+.css-property {
+  border-bottom: 1px dotted #888;
+  cursor: help;
+}
+
+.css-tooltip {
+  position: fixed;
+  max-width: 260px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  background-color: #222;
+  color: #fff;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 1000;
+}
+
 #clean-btn {
   display: block;
   margin: 20px auto 0;
@@ -69,7 +100,6 @@ textarea {
   background-color: #555;
 }
 
-/* Smaller secondary buttons: Ask AI, Fix it, Clear */
 .secondary-btn {
   align-self: flex-start;
   margin-top: 10px;
@@ -102,6 +132,48 @@ textarea {
   background-color: #1b5e20;
 }
 
+#diff-toggle-btn {
+  background-color: #555;
+}
+
+#diff-toggle-btn:hover {
+  background-color: #333;
+}
+
+.diff-panel {
+  margin-top: 16px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #fafafa;
+  font-family: monospace;
+  font-size: 13px;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.diff-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.diff-line.diff-added {
+  background-color: #e6ffed;
+  color: #1a7f37;
+}
+
+.diff-line.diff-removed {
+  background-color: #ffeef0;
+  color: #b3261e;
+  text-decoration: line-through;
+}
+
+.diff-line.diff-unchanged {
+  color: #888;
+}
+
 .api-key-section {
   margin-top: 20px;
 }
@@ -123,7 +195,6 @@ textarea {
   margin-bottom: 0;
 }
 
-/* Small circular info button (ⓘ) next to the provider dropdown */
 .icon-btn {
   display: inline-block;
   width: 20px;
@@ -191,4 +262,25 @@ textarea {
 
 .api-key-note a {
   color: #555;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.column-header label {
+  margin-bottom: 0;
+}
+
+.mood-badge {
+  font-size: 12px;
+  font-weight: bold;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background-color: #eee;
+  color: #666;
+  white-space: nowrap;
 }

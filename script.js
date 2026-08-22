@@ -8,22 +8,24 @@ const providerInfoBtn = document.getElementById('provider-info-btn');
 const providerInfoPanel = document.getElementById('provider-info-panel');
 const askAiBtn = document.getElementById('ask-ai-btn');
 const fixItBtn = document.getElementById('fix-it-btn');
+const moodBadge = document.getElementById('mood-badge');
+const outputMoodBadge = document.getElementById('output-mood-badge');
+const outputTooltip = document.getElementById('css-tooltip');
+const diffToggleBtn = document.getElementById('diff-toggle-btn');
+const diffPanel = document.getElementById('diff-panel');
 
-// Remembers the most recent error and the CSS that caused it, so the
-// "Ask AI" and "Fix it for me" buttons know what to send without the
-// user having to resubmit anything.
 let lastErrorMessage = '';
 let lastCssAttempted = '';
+let lastDiffBefore = '';
+let lastDiffAfter = '';
 
-// Clears the API key field with one click (e.g. on a shared computer).
+inputCss.addEventListener('input', updateInputMood);
+
 clearKeyBtn.addEventListener('click', () => {
   userApiKey.value = '';
   userApiKey.focus();
 });
 
-// Short, provider-specific notes shown when the ⓘ button is clicked.
-// Gemini is flagged as the safe default since it's designed for direct
-// browser calls; OpenAI/Anthropic are not, and need extra caveats.
 const providerInfoText = {
   gemini: 'Gemini is the recommended option here — Google\'s API is designed to be called directly from a browser like this.',
   openai: 'Heads up: OpenAI\'s API was not designed to be called directly from a browser, and doing so exposes your key more than a proper backend would. For safety, consider using Gemini instead.',
@@ -39,14 +41,10 @@ providerInfoBtn.addEventListener('click', () => {
   if (!providerInfoPanel.hidden) updateProviderInfo();
 });
 
-// Keep the info text in sync if the user switches providers while the panel is open.
 providerSelect.addEventListener('change', () => {
   if (!providerInfoPanel.hidden) updateProviderInfo();
 });
 
-// Builds the provider-specific request details: URL, headers, body shape,
-// and functions to pull the generated text (or an error message) back out
-// of that provider's particular response format.
 function buildRequest(provider, apiKey, prompt) {
   if (provider === 'gemini') {
     return {
@@ -86,9 +84,6 @@ function buildRequest(provider, apiKey, prompt) {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
-        // This header is intentionally named as a warning by Anthropic:
-        // calling their API directly from a browser is not the intended
-        // integration pattern, but it does work with this header set.
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
@@ -102,9 +97,6 @@ function buildRequest(provider, apiKey, prompt) {
   }
 }
 
-// Single entry point used by every AI-driven feature in the app.
-// Handles the actual fetch + error normalization so callers don't
-// need to know which provider is selected.
 async function callAI(provider, apiKey, prompt) {
   const { url, headers, body, extractText, extractError } = buildRequest(provider, apiKey, prompt);
   const response = await fetch(url, { method: 'POST', headers, body });
@@ -121,9 +113,6 @@ async function callAI(provider, apiKey, prompt) {
   return text;
 }
 
-// Real CSS syntax + property/value validation using csstree, rather than
-// hand-rolled regex checks. Catches both structural errors (mismatched
-// braces/quotes) and semantic ones (unknown properties, wrong value types).
 function validateCss(css) {
   const errors = [];
 
@@ -151,19 +140,245 @@ function validateCss(css) {
   return errors.length > 0 ? errors : null;
 }
 
+const moodLevels = [
+  { max: 0, label: '✨ Pristine', bg: '#e6f4ea', color: '#1e7d34' },
+  { max: 2, label: '🙂 Tidy-ish', bg: '#eef6ff', color: '#2b5fa8' },
+  { max: 5, label: '😬 Getting Messy', bg: '#fff4e0', color: '#a05a00' },
+  { max: Infinity, label: '🔥 Chaos Level: High', bg: '#fdecea', color: '#b3261e' }
+];
+
+function computeChaosScore(css) {
+  if (!css.trim()) return 0;
+
+  let score = 0;
+
+  const errors = validateCss(css);
+  if (errors) {
+    score += errors.length * 2;
+  }
+
+  try {
+    const ast = csstree.parse(css, { onParseError() {} });
+    csstree.walk(ast, (node) => {
+      if (node.type === 'Rule' && node.block) {
+        const seen = new Set();
+        node.block.children.forEach((decl) => {
+          if (decl.type === 'Declaration') {
+            if (seen.has(decl.property)) score += 1;
+            seen.add(decl.property);
+          }
+        });
+      }
+    });
+  } catch (e) {
+    // parsing already reflected via errors above
+  }
+
+  const lines = css.split('\n');
+  const indentUnits = new Set(
+    lines
+      .filter((line) => /^\s+\S/.test(line))
+      .map((line) => (line.match(/^\s+/)[0].includes('\t') ? 'tab' : 'space'))
+  );
+  if (indentUnits.size > 1) score += 1;
+
+  return score;
+}
+
+function setMoodBadge(el, score) {
+  const level = moodLevels.find((l) => score <= l.max);
+  el.textContent = level.label;
+  el.style.backgroundColor = level.bg;
+  el.style.color = level.color;
+}
+
+function updateInputMood() {
+  setMoodBadge(moodBadge, computeChaosScore(inputCss.value));
+}
+
+const propertyExplanations = {
+  'color': 'Sets the text color of an element.',
+  'background-color': 'Sets the background color of an element.',
+  'background-image': 'Sets an image (or gradient) as the background of an element.',
+  'font-size': 'Controls how large the text appears.',
+  'font-family': 'Chooses the typeface(s) used for text.',
+  'font-weight': 'Controls how bold or light text appears.',
+  'line-height': 'Sets the vertical space between lines of text.',
+  'text-align': 'Aligns text horizontally (left, right, center, justify).',
+  'text-decoration': 'Adds or removes styling like underline or strikethrough.',
+  'margin': 'Sets space outside an element, between it and neighboring elements.',
+  'margin-top': 'Sets space above the element, outside its border.',
+  'margin-right': 'Sets space to the right of the element, outside its border.',
+  'margin-bottom': 'Sets space below the element, outside its border.',
+  'margin-left': 'Sets space to the left of the element, outside its border.',
+  'padding': 'Sets space inside an element, between its border and its content.',
+  'padding-top': 'Sets space above the content, inside the border.',
+  'padding-right': 'Sets space to the right of the content, inside the border.',
+  'padding-bottom': 'Sets space below the content, inside the border.',
+  'padding-left': 'Sets space to the left of the content, inside the border.',
+  'border': 'Shorthand for setting an element\'s border width, style, and color at once.',
+  'border-radius': 'Rounds the corners of an element\'s border box.',
+  'border-width': 'Sets the thickness of an element\'s border.',
+  'border-color': 'Sets the color of an element\'s border.',
+  'border-style': 'Sets the line style of an element\'s border (solid, dashed, etc.).',
+  'width': 'Sets the width of an element\'s content box.',
+  'height': 'Sets the height of an element\'s content box.',
+  'max-width': 'Sets the largest width an element is allowed to grow to.',
+  'min-width': 'Sets the smallest width an element is allowed to shrink to.',
+  'max-height': 'Sets the largest height an element is allowed to grow to.',
+  'min-height': 'Sets the smallest height an element is allowed to shrink to.',
+  'display': 'Controls how an element is laid out (block, flex, grid, none, etc.).',
+  'position': 'Controls how an element is positioned (static, relative, absolute, fixed, sticky).',
+  'top': 'Sets the offset of a positioned element from the top edge of its container.',
+  'right': 'Sets the offset of a positioned element from the right edge of its container.',
+  'bottom': 'Sets the offset of a positioned element from the bottom edge of its container.',
+  'left': 'Sets the offset of a positioned element from the left edge of its container.',
+  'z-index': 'Controls the stacking order of overlapping elements.',
+  'overflow': 'Controls what happens to content that overflows an element\'s box.',
+  'flex': 'Shorthand for how a flex item grows, shrinks, and its base size.',
+  'flex-direction': 'Sets whether flex items lay out in a row or column.',
+  'justify-content': 'Aligns flex/grid items along the main axis.',
+  'align-items': 'Aligns flex/grid items along the cross axis.',
+  'gap': 'Sets spacing between flex or grid items.',
+  'grid-template-columns': 'Defines the columns of a grid layout.',
+  'grid-template-rows': 'Defines the rows of a grid layout.',
+  'box-shadow': 'Adds a shadow effect around an element\'s frame.',
+  'text-shadow': 'Adds a shadow effect to text.',
+  'opacity': 'Controls the transparency of an element (0 = invisible, 1 = fully visible).',
+  'cursor': 'Sets what the mouse cursor looks like when hovering over an element.',
+  'transition': 'Animates changes to a property smoothly over time.',
+  'box-sizing': 'Determines whether padding/border are included in an element\'s set width and height.',
+  'letter-spacing': 'Sets the spacing between characters in text.',
+  'white-space': 'Controls how whitespace and line breaks inside text are handled.',
+  'vertical-align': 'Aligns inline or table-cell elements vertically.',
+  'visibility': 'Shows or hides an element without removing it from the layout.'
+};
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderCssWithHoverInfo(cssText) {
+  const matches = [];
+
+  try {
+    const ast = csstree.parse(cssText, { positions: true, onParseError() {} });
+    csstree.walk(ast, (node) => {
+      if (node.type === 'Declaration' && node.loc) {
+        const start = node.loc.start.offset;
+        const propLength = node.property.length;
+        const candidate = cssText.slice(start, start + propLength);
+        if (candidate.toLowerCase() === node.property.toLowerCase()) {
+          matches.push({ start, end: start + propLength, property: node.property });
+        }
+      }
+    });
+  } catch (e) {
+    // If parsing fails here, we just skip hover-highlighting and show plain text below.
+  }
+
+  matches.sort((a, b) => a.start - b.start);
+
+  let html = '';
+  let cursor = 0;
+  matches.forEach((m) => {
+    html += escapeHtml(cssText.slice(cursor, m.start));
+    const explanation = propertyExplanations[m.property.toLowerCase()] || 'A CSS property. No description available yet.';
+    html += `<span class="css-property" data-explain="${escapeHtml(explanation)}">${escapeHtml(cssText.slice(m.start, m.end))}</span>`;
+    cursor = m.end;
+  });
+  html += escapeHtml(cssText.slice(cursor));
+
+  return html;
+}
+
+function setPlainOutput(text) {
+  outputCss.textContent = text;
+}
+
+function setCssOutput(cssText) {
+  outputCss.innerHTML = renderCssWithHoverInfo(cssText);
+}
+
+outputCss.addEventListener('mouseover', (e) => {
+  const target = e.target.closest('.css-property');
+  if (!target) return;
+  outputTooltip.textContent = target.dataset.explain;
+  outputTooltip.hidden = false;
+});
+
+outputCss.addEventListener('mousemove', (e) => {
+  if (outputTooltip.hidden) return;
+  outputTooltip.style.left = `${e.clientX + 12}px`;
+  outputTooltip.style.top = `${e.clientY + 12}px`;
+});
+
+outputCss.addEventListener('mouseout', (e) => {
+  if (!e.target.closest('.css-property')) return;
+  outputTooltip.hidden = true;
+});
+
+function buildDiffHtml(oldStr, newStr) {
+  const parts = Diff.diffLines(oldStr, newStr);
+  let html = '';
+
+  parts.forEach((part) => {
+    const cls = part.added ? 'diff-added' : part.removed ? 'diff-removed' : 'diff-unchanged';
+    const prefix = part.added ? '+ ' : part.removed ? '- ' : '  ';
+    const lines = part.value.replace(/\n$/, '').split('\n');
+    lines.forEach((line) => {
+      html += `<div class="diff-line ${cls}">${prefix}${escapeHtml(line)}</div>`;
+    });
+  });
+
+  return html;
+}
+
+function showDiffToggle(beforeCss, afterCss) {
+  lastDiffBefore = beforeCss;
+  lastDiffAfter = afterCss;
+  diffToggleBtn.hidden = false;
+  diffToggleBtn.textContent = 'Show what changed';
+  diffPanel.hidden = true;
+  diffPanel.innerHTML = '';
+}
+
+function hideDiffToggle() {
+  diffToggleBtn.hidden = true;
+  diffPanel.hidden = true;
+  diffPanel.innerHTML = '';
+}
+
+diffToggleBtn.addEventListener('click', () => {
+  if (diffPanel.hidden) {
+    diffPanel.innerHTML = buildDiffHtml(lastDiffBefore, lastDiffAfter);
+    diffPanel.hidden = false;
+    diffToggleBtn.textContent = 'Hide what changed';
+  } else {
+    diffPanel.hidden = true;
+    diffToggleBtn.textContent = 'Show what changed';
+  }
+});
+
 function showError(message, cssAttempted) {
   lastErrorMessage = message;
   lastCssAttempted = cssAttempted;
-  outputCss.value = `Error: ${message}`;
+  setPlainOutput(`Error: ${message}`);
   outputCss.classList.add('has-error');
   askAiBtn.hidden = false;
   fixItBtn.hidden = true;
+  hideDiffToggle();
 }
 
 function clearError() {
   outputCss.classList.remove('has-error');
   askAiBtn.hidden = true;
   fixItBtn.hidden = true;
+  hideDiffToggle();
 }
 
 cleanBtn.addEventListener('click', async () => {
@@ -174,24 +389,22 @@ cleanBtn.addEventListener('click', async () => {
   clearError();
 
   if (!apiKey) {
-    outputCss.value = 'Please enter your API key first.';
+    setPlainOutput('Please enter your API key first.');
     return;
   }
 
   if (!messyCss.trim()) {
-    outputCss.value = '';
+    setPlainOutput('');
     return;
   }
 
-  // Validate locally first — catches obvious syntax mistakes instantly,
-  // without spending an API call on CSS that's already broken.
   const validationErrors = validateCss(messyCss);
   if (validationErrors) {
     showError(validationErrors.join('\n'), messyCss);
     return;
   }
 
-  outputCss.value = 'Cleaning...';
+  setPlainOutput('Cleaning...');
 
   const prompt = `Clean up and reformat this CSS. Keep it functionally identical — do not change any visual behavior. Apply these rules:
 
@@ -211,7 +424,9 @@ ${messyCss}`;
 
   try {
     const cleanedCss = await callAI(provider, apiKey, prompt);
-    outputCss.value = cleanedCss;
+    setCssOutput(cleanedCss);
+    setMoodBadge(outputMoodBadge, computeChaosScore(cleanedCss));
+    showDiffToggle(messyCss, cleanedCss);
   } catch (error) {
     console.error('Error:', error);
     showError(error.message, messyCss);
@@ -223,12 +438,12 @@ askAiBtn.addEventListener('click', async () => {
   const provider = providerSelect.value;
 
   if (!apiKey) {
-    outputCss.value = 'Please enter your API key first.';
+    setPlainOutput('Please enter your API key first.');
     return;
   }
 
   outputCss.classList.remove('has-error');
-  outputCss.value = 'Asking AI...';
+  setPlainOutput('Asking AI...');
   askAiBtn.hidden = true;
 
   const prompt = `A user's CSS caused this error: "${lastErrorMessage}"
@@ -240,7 +455,7 @@ In 3-5 short sentences or bullet points, explain briefly and effectively what is
 
   try {
     const answer = await callAI(provider, apiKey, prompt);
-    outputCss.value = answer;
+    setPlainOutput(answer);
     fixItBtn.hidden = false;
   } catch (error) {
     console.error('Error:', error);
@@ -254,16 +469,14 @@ fixItBtn.addEventListener('click', async () => {
   const currentCss = inputCss.value;
 
   if (!apiKey) {
-    outputCss.value = 'Please enter your API key first.';
+    setPlainOutput('Please enter your API key first.');
     return;
   }
 
   outputCss.classList.remove('has-error', 'has-warning');
-  outputCss.value = 'Checking...';
+  setPlainOutput('Checking...');
+  hideDiffToggle();
 
-  // Two-mode prompt: the AI must not guess missing values (e.g. "font-size: px;")
-  // since inventing a number could silently change the user's intended design.
-  // Ambiguous cases are reported back for the user to fill in themselves.
   const prompt = `Review this CSS for problems and respond in one of two modes:
 
 MODE A — If it contains one or more declarations with a missing, empty, or ambiguous value (e.g. "font-size: px;", "padding: ;", "margin: solid;") where you cannot safely infer a specific value, do NOT modify or guess it. Instead respond with a short message starting exactly with "MISSING_VALUES:" followed by a bullet list, one line per problem, naming the exact selector/property and what's missing, and ending with a line telling the user to fill in the value(s) in the left box and click "Fix it for me" again. Say nothing else. Example:
@@ -281,15 +494,18 @@ ${currentCss}`;
     const trimmed = result.trim();
 
     if (trimmed.startsWith('MISSING_VALUES:')) {
-      outputCss.value = trimmed.replace(/^MISSING_VALUES:\s*/, '');
+      setPlainOutput(trimmed.replace(/^MISSING_VALUES:\s*/, ''));
       outputCss.classList.add('has-warning');
       fixItBtn.hidden = false;
     } else {
-      outputCss.value = trimmed;
+      setCssOutput(trimmed);
       fixItBtn.hidden = true;
+      showDiffToggle(currentCss, trimmed);
     }
   } catch (error) {
     console.error('Error:', error);
     showError(error.message, currentCss);
   }
 });
+
+updateInputMood();

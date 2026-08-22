@@ -5,14 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messy CSS → Clean CSS</title>
     <link rel="stylesheet" href="style.css">
-
-    <!--
-      Content-Security-Policy: since this app has no backend, the key and all
-      requests happen entirely in the browser. This CSP restricts which domains
-      the page is allowed to load scripts from and send network requests to,
-      so that even if a script injection vulnerability existed, it couldn't
-      exfiltrate the user's API key to an attacker-controlled server.
-    -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com;">
   </head>
 
@@ -22,26 +14,32 @@
 
     <div class="editor-wrapper">
       <div class="editor-column">
-        <label for="input-css">
-          Messy CSS
-        </label>
+        <div class="column-header">
+          <label for="input-css">
+            Messy CSS
+          </label>
+          <span id="mood-badge" class="mood-badge"></span>
+        </div>
         <textarea id="input-css" placeholder="Paste your messy CSS here..."></textarea>
       </div>
 
       <div class="editor-column">
-        <label for="output-css">
-          Clean CSS
-        </label>
-        <textarea id="output-css" readonly placeholder="Cleaned CSS will appear here..."></textarea>
+        <div class="column-header">
+          <label for="output-css">
+            Clean CSS
+          </label>
+          <span id="output-mood-badge" class="mood-badge"></span>
+        </div>
+        <pre id="output-css" class="output-code" data-placeholder="Cleaned CSS will appear here..." tabindex="0"></pre>
         <button type="button" id="ask-ai-btn" class="secondary-btn" hidden>What's wrong? Ask AI</button>
         <button type="button" id="fix-it-btn" class="secondary-btn" hidden>Fix it for me</button>
+        <button type="button" id="diff-toggle-btn" class="secondary-btn" hidden>Show what changed</button>
       </div>
     </div>
 
-    <div class="api-key-section">
+    <div id="diff-panel" class="diff-panel" hidden></div>
 
-      <!-- Provider selector: lets the user pick which AI service to call.
-           The ⓘ button reveals provider-specific notes (e.g. CORS caveats). -->
+    <div class="api-key-section">
       <div class="provider-row">
         <label for="provider-select">AI Provider</label>
         <button type="button" id="provider-info-btn" class="icon-btn" aria-label="Provider info" title="Provider info">ⓘ</button>
@@ -55,11 +53,6 @@
 
       <label for="user-api-key">Your API key</label>
       <div class="api-key-row">
-        <!--
-          autocomplete="off" and spellcheck="false" stop the browser from
-          offering to save/autofill the key or send it to a spellcheck service.
-          type="password" masks it visually on screen.
-        -->
         <input
           type="password"
           id="user-api-key"
@@ -67,13 +60,8 @@
           autocomplete="off"
           spellcheck="false"
         >
-        <!-- Lets the user wipe the key from the field with one click,
-             e.g. before stepping away from a shared computer. -->
         <button type="button" id="clear-key-btn" class="secondary-btn">Clear</button>
       </div>
-
-      <!-- Plain-language disclosure of where the key goes and doesn't go,
-           plus a nudge toward restricting the key on the provider's side. -->
       <p class="api-key-note">
         Your key is used only in your browser to call the selected provider's API directly.
         It is never sent to or stored on our servers. We recommend restricting your key
@@ -85,9 +73,10 @@
       Clean it up
     </button>
 
-    <!-- csstree: used for real CSS parsing/validation.
-         Loaded from a CDN since this project has no build step or bundler. -->
+    <div id="css-tooltip" class="css-tooltip" hidden></div>
+
     <script src="https://cdn.jsdelivr.net/npm/css-tree@3.1.0/dist/csstree.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/diff@9.0.0/dist/diff.js"></script>
     <script src="script.js"></script>
 
   </body>
