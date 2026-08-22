@@ -28,79 +28,16 @@
           <label for="output-css">
             Clean CSS
           </label>
-          <span id="output-mood-badge" class="mood-badge"></span>
+          <div class="column-header-actions">
+            <span id="output-mood-badge" class="mood-badge"></span>
+            <button type="button" id="copy-output-btn" class="copy-btn" title="Copy to clipboard">Copy</button>
+          </div>
         </div>
         <pre id="output-css" class="output-code" data-placeholder="Cleaned CSS will appear here..." tabindex="0"></pre>
         <button type="button" id="ask-ai-btn" class="secondary-btn" hidden>What's wrong? Ask AI</button>
         <button type="button" id="fix-it-btn" class="secondary-btn" hidden>Fix it for me</button>
         <button type="button" id="diff-toggle-btn" class="secondary-btn" hidden>Show what changed</button>
       </div>
-    </div>
-
-    <div id="diff-panel" class="diff-panel" hidden></div>
-
-    <div class="unused-css-section">
-      <div class="column-header">
-        <label for="unused-html-input">Check for unused CSS (optional)</label>
-      </div>
-      <p class="unused-intro">
-        Paste the HTML this CSS is meant to style, then click "Find unused CSS" to see which
-        selectors in the left box don't match anything below. This runs instantly and doesn't use your API key.
-      </p>
-      <textarea id="unused-html-input" placeholder="Paste your HTML here..."></textarea>
-      <button type="button" id="unused-check-btn" class="secondary-btn">Find unused CSS</button>
-      <div id="unused-results" class="unused-results" hidden></div>
-    </div>
-
-    <div class="specificity-section">
-      <div class="column-header">
-        <label>Specificity &amp; Cascade Conflict Finder</label>
-      </div>
-      <p class="unused-intro">
-        Scans the CSS in the left box for rules that set the same property with different values
-        on overlapping selectors, and shows which one wins and why. This runs instantly and doesn't use your API key.
-      </p>
-      <button type="button" id="specificity-check-btn" class="secondary-btn">Find cascade conflicts</button>
-      <div id="specificity-results" class="unused-results" hidden></div>
-    </div>
-
-    <div class="tokens-section">
-      <div class="column-header">
-        <label>Magic Number → Design Token Extractor</label>
-      </div>
-      <p class="unused-intro">
-        Finds colors and size values (px/rem/em) repeated across the CSS in the left box and suggests
-        turning them into CSS custom properties. This runs instantly and doesn't use your API key.
-      </p>
-      <button type="button" id="tokens-extract-btn" class="secondary-btn">Extract design tokens</button>
-      <div id="tokens-results" class="unused-results" hidden></div>
-      <button type="button" id="tokens-apply-btn" class="secondary-btn" hidden>Apply tokens to output</button>
-    </div>
-
-    <div class="responsive-section">
-      <div class="column-header">
-        <label>Responsive Breakpoint Generator</label>
-      </div>
-      <p class="unused-intro">
-        Adds tablet and mobile media queries to the CSS in the left box, scaling sizes and adjusting
-        layout for smaller screens while leaving your existing desktop styles untouched. Uses your AI provider and API key.
-      </p>
-      <button type="button" id="responsive-generate-btn" class="secondary-btn">Generate responsive breakpoints</button>
-    </div>
-
-    <div class="bug-section">
-      <div class="column-header">
-        <label for="bug-description-input">"Explain My Bug" Mode</label>
-      </div>
-      <p class="unused-intro">
-        Describe a visual problem you're seeing (e.g. "my button won't center"), and optionally paste
-        relevant HTML for context. The AI will diagnose the likely cause and fix it, using the CSS in the left box.
-        Uses your AI provider and API key.
-      </p>
-      <textarea id="bug-description-input" class="bug-textarea" placeholder="Describe the problem you're seeing..."></textarea>
-      <textarea id="bug-html-input" class="bug-textarea" placeholder="Optional: paste relevant HTML for more context..."></textarea>
-      <button type="button" id="bug-explain-btn" class="secondary-btn">Explain my bug and fix it</button>
-      <div id="bug-results" class="unused-results" hidden></div>
     </div>
 
     <div class="api-key-section">
@@ -136,6 +73,76 @@
     <button id="clean-btn">
       Clean it up
     </button>
+
+    <div id="diff-panel" class="diff-panel" hidden></div>
+
+    <div class="advanced-tools">
+      <h2 class="advanced-tools-title">Advanced Tools</h2>
+
+      <details class="tool-accordion" open>
+        <summary>Check for unused CSS</summary>
+        <div class="tool-accordion-content">
+          <p class="unused-intro">
+            Paste the HTML this CSS is meant to style, then click "Find unused CSS" to see which
+            selectors in the left box don't match anything below. This runs instantly and doesn't use your API key.
+          </p>
+          <textarea id="unused-html-input" placeholder="Paste your HTML here..."></textarea>
+          <button type="button" id="unused-check-btn" class="secondary-btn">Find unused CSS</button>
+          <div id="unused-results" class="unused-results" hidden></div>
+        </div>
+      </details>
+
+      <details class="tool-accordion">
+        <summary>Specificity &amp; Cascade Conflict Finder</summary>
+        <div class="tool-accordion-content">
+          <p class="unused-intro">
+            Scans the CSS in the left box for rules that set the same property with different values
+            on overlapping selectors, and shows which one wins and why. This runs instantly and doesn't use your API key.
+          </p>
+          <button type="button" id="specificity-check-btn" class="secondary-btn">Find cascade conflicts</button>
+          <div id="specificity-results" class="unused-results" hidden></div>
+        </div>
+      </details>
+
+      <details class="tool-accordion">
+        <summary>Magic Number → Design Token Extractor</summary>
+        <div class="tool-accordion-content">
+          <p class="unused-intro">
+            Finds colors and size values (px/rem/em) repeated across the CSS in the left box and suggests
+            turning them into CSS custom properties. This runs instantly and doesn't use your API key.
+          </p>
+          <button type="button" id="tokens-extract-btn" class="secondary-btn">Extract design tokens</button>
+          <div id="tokens-results" class="unused-results" hidden></div>
+          <button type="button" id="tokens-apply-btn" class="secondary-btn" hidden>Apply tokens to output</button>
+        </div>
+      </details>
+
+      <details class="tool-accordion">
+        <summary>Responsive Breakpoint Generator</summary>
+        <div class="tool-accordion-content">
+          <p class="unused-intro">
+            Adds tablet and mobile media queries to the CSS in the left box, scaling sizes and adjusting
+            layout for smaller screens while leaving your existing desktop styles untouched. Uses your AI provider and API key.
+          </p>
+          <button type="button" id="responsive-generate-btn" class="secondary-btn">Generate responsive breakpoints</button>
+        </div>
+      </details>
+
+      <details class="tool-accordion">
+        <summary>"Explain My Bug" Mode</summary>
+        <div class="tool-accordion-content">
+          <p class="unused-intro">
+            Describe a visual problem you're seeing (e.g. "my button won't center"), and optionally paste
+            relevant HTML for context. The AI will diagnose the likely cause and fix it, using the CSS in the left box.
+            Uses your AI provider and API key.
+          </p>
+          <textarea id="bug-description-input" class="bug-textarea" placeholder="Describe the problem you're seeing..."></textarea>
+          <textarea id="bug-html-input" class="bug-textarea" placeholder="Optional: paste relevant HTML for more context..."></textarea>
+          <button type="button" id="bug-explain-btn" class="secondary-btn">Explain my bug and fix it</button>
+          <div id="bug-results" class="unused-results" hidden></div>
+        </div>
+      </details>
+    </div>
 
     <div id="css-tooltip" class="css-tooltip" hidden></div>
 

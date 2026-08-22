@@ -26,6 +26,7 @@ const bugDescriptionInput = document.getElementById('bug-description-input');
 const bugHtmlInput = document.getElementById('bug-html-input');
 const bugExplainBtn = document.getElementById('bug-explain-btn');
 const bugResults = document.getElementById('bug-results');
+const copyOutputBtn = document.getElementById('copy-output-btn');
 
 let lastErrorMessage = '';
 let lastCssAttempted = '';
@@ -1121,6 +1122,23 @@ FIXED_CSS:
   } catch (error) {
     console.error('Error:', error);
     bugResults.innerHTML = `<p>Error: ${escapeHtml(error.message)}</p>`;
+  }
+});
+
+copyOutputBtn.addEventListener('click', async () => {
+  const text = outputCss.textContent;
+  if (!text.trim()) return;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    copyOutputBtn.textContent = 'Copied!';
+    copyOutputBtn.classList.add('copied');
+    setTimeout(() => {
+      copyOutputBtn.textContent = 'Copy';
+      copyOutputBtn.classList.remove('copied');
+    }, 1500);
+  } catch (error) {
+    console.error('Copy failed:', error);
   }
 });
 
