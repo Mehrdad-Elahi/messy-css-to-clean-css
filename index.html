@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messy CSS → Clean CSS</title>
     <link rel="stylesheet" href="style.css">
+
+    <!--
+      Content-Security-Policy: since this app has no backend, the key and all
+      requests happen entirely in the browser. This CSP restricts which domains
+      the page is allowed to load scripts from and send network requests to,
+      so that even if a script injection vulnerability existed, it couldn't
+      exfiltrate the user's API key to an attacker-controlled server.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com;">
   </head>
 
   <body>
@@ -30,14 +39,54 @@
     </div>
 
     <div class="api-key-section">
-      <label for="user-api-key">Your Gemini API key</label>
-      <input type="password" id="user-api-key" placeholder="Paste your Gemini API key here">
+
+      <!-- Provider selector: lets the user pick which AI service to call.
+           The ⓘ button reveals provider-specific notes (e.g. CORS caveats). -->
+      <div class="provider-row">
+        <label for="provider-select">AI Provider</label>
+        <button type="button" id="provider-info-btn" class="icon-btn" aria-label="Provider info" title="Provider info">ⓘ</button>
+      </div>
+      <select id="provider-select">
+        <option value="gemini">Google Gemini (recommended)</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic Claude</option>
+      </select>
+      <p id="provider-info-panel" class="provider-info-panel" hidden></p>
+
+      <label for="user-api-key">Your API key</label>
+      <div class="api-key-row">
+        <!--
+          autocomplete="off" and spellcheck="false" stop the browser from
+          offering to save/autofill the key or send it to a spellcheck service.
+          type="password" masks it visually on screen.
+        -->
+        <input
+          type="password"
+          id="user-api-key"
+          placeholder="Paste your API key here"
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <!-- Lets the user wipe the key from the field with one click,
+             e.g. before stepping away from a shared computer. -->
+        <button type="button" id="clear-key-btn" class="secondary-btn">Clear</button>
+      </div>
+
+      <!-- Plain-language disclosure of where the key goes and doesn't go,
+           plus a nudge toward restricting the key on the provider's side. -->
+      <p class="api-key-note">
+        Your key is used only in your browser to call the selected provider's API directly.
+        It is never sent to or stored on our servers. We recommend restricting your key
+        (by domain/IP and by API scope) in that provider's console.
+      </p>
     </div>
 
     <button id="clean-btn">
       Clean it up
     </button>
 
+    <!-- csstree: used for real CSS parsing/validation.
+         Loaded from a CDN since this project has no build step or bundler. -->
     <script src="https://cdn.jsdelivr.net/npm/css-tree@3.1.0/dist/csstree.js"></script>
     <script src="script.js"></script>
 

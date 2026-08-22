@@ -2,40 +2,128 @@ const inputCss = document.getElementById('input-css');
 const outputCss = document.getElementById('output-css');
 const cleanBtn = document.getElementById('clean-btn');
 const userApiKey = document.getElementById('user-api-key');
+const clearKeyBtn = document.getElementById('clear-key-btn');
+const providerSelect = document.getElementById('provider-select');
+const providerInfoBtn = document.getElementById('provider-info-btn');
+const providerInfoPanel = document.getElementById('provider-info-panel');
 const askAiBtn = document.getElementById('ask-ai-btn');
 const fixItBtn = document.getElementById('fix-it-btn');
 
+// Remembers the most recent error and the CSS that caused it, so the
+// "Ask AI" and "Fix it for me" buttons know what to send without the
+// user having to resubmit anything.
 let lastErrorMessage = '';
 let lastCssAttempted = '';
 
-async function callGemini(apiKey, prompt) {
-  const response = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
-    {
-      method: 'POST',
+// Clears the API key field with one click (e.g. on a shared computer).
+clearKeyBtn.addEventListener('click', () => {
+  userApiKey.value = '';
+  userApiKey.focus();
+});
+
+// Short, provider-specific notes shown when the ⓘ button is clicked.
+// Gemini is flagged as the safe default since it's designed for direct
+// browser calls; OpenAI/Anthropic are not, and need extra caveats.
+const providerInfoText = {
+  gemini: 'Gemini is the recommended option here — Google\'s API is designed to be called directly from a browser like this.',
+  openai: 'Heads up: OpenAI\'s API was not designed to be called directly from a browser, and doing so exposes your key more than a proper backend would. For safety, consider using Gemini instead.',
+  anthropic: 'Heads up: Anthropic\'s API requires a special "direct browser access" header to work here, because it\'s not meant to be called directly from a browser — the header name itself is a built-in warning from Anthropic. For safety, consider using Gemini instead.'
+};
+
+function updateProviderInfo() {
+  providerInfoPanel.textContent = providerInfoText[providerSelect.value];
+}
+
+providerInfoBtn.addEventListener('click', () => {
+  providerInfoPanel.hidden = !providerInfoPanel.hidden;
+  if (!providerInfoPanel.hidden) updateProviderInfo();
+});
+
+// Keep the info text in sync if the user switches providers while the panel is open.
+providerSelect.addEventListener('change', () => {
+  if (!providerInfoPanel.hidden) updateProviderInfo();
+});
+
+// Builds the provider-specific request details: URL, headers, body shape,
+// and functions to pull the generated text (or an error message) back out
+// of that provider's particular response format.
+function buildRequest(provider, apiKey, prompt) {
+  if (provider === 'gemini') {
+    return {
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
       headers: {
         'Content-Type': 'application/json',
         'x-goog-api-key': apiKey
       },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }]
-      })
-    }
-  );
+      }),
+      extractText: (data) => data.candidates?.[0]?.content?.parts?.[0]?.text,
+      extractError: (data) => data.error?.message
+    };
+  }
 
+  if (provider === 'openai') {
+    return {
+      url: 'https://api.openai.com/v1/chat/completions',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        messages: [{ role: 'user', content: prompt }]
+      }),
+      extractText: (data) => data.choices?.[0]?.message?.content,
+      extractError: (data) => data.error?.message
+    };
+  }
+
+  if (provider === 'anthropic') {
+    return {
+      url: 'https://api.anthropic.com/v1/messages',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        // This header is intentionally named as a warning by Anthropic:
+        // calling their API directly from a browser is not the intended
+        // integration pattern, but it does work with this header set.
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      }),
+      extractText: (data) => data.content?.[0]?.text,
+      extractError: (data) => data.error?.message
+    };
+  }
+}
+
+// Single entry point used by every AI-driven feature in the app.
+// Handles the actual fetch + error normalization so callers don't
+// need to know which provider is selected.
+async function callAI(provider, apiKey, prompt) {
+  const { url, headers, body, extractText, extractError } = buildRequest(provider, apiKey, prompt);
+  const response = await fetch(url, { method: 'POST', headers, body });
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error?.message || 'Invalid API key or request failed.');
+    throw new Error(extractError(data) || 'Invalid API key or request failed.');
   }
 
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = extractText(data);
   if (!text) {
     throw new Error('No response received. Please try again.');
   }
   return text;
 }
 
+// Real CSS syntax + property/value validation using csstree, rather than
+// hand-rolled regex checks. Catches both structural errors (mismatched
+// braces/quotes) and semantic ones (unknown properties, wrong value types).
 function validateCss(css) {
   const errors = [];
 
@@ -81,11 +169,12 @@ function clearError() {
 cleanBtn.addEventListener('click', async () => {
   const messyCss = inputCss.value;
   const apiKey = userApiKey.value.trim();
+  const provider = providerSelect.value;
 
   clearError();
 
   if (!apiKey) {
-    outputCss.value = 'Please enter your Gemini API key first.';
+    outputCss.value = 'Please enter your API key first.';
     return;
   }
 
@@ -94,6 +183,8 @@ cleanBtn.addEventListener('click', async () => {
     return;
   }
 
+  // Validate locally first — catches obvious syntax mistakes instantly,
+  // without spending an API call on CSS that's already broken.
   const validationErrors = validateCss(messyCss);
   if (validationErrors) {
     showError(validationErrors.join('\n'), messyCss);
@@ -119,7 +210,7 @@ CSS:
 ${messyCss}`;
 
   try {
-    const cleanedCss = await callGemini(apiKey, prompt);
+    const cleanedCss = await callAI(provider, apiKey, prompt);
     outputCss.value = cleanedCss;
   } catch (error) {
     console.error('Error:', error);
@@ -129,9 +220,10 @@ ${messyCss}`;
 
 askAiBtn.addEventListener('click', async () => {
   const apiKey = userApiKey.value.trim();
+  const provider = providerSelect.value;
 
   if (!apiKey) {
-    outputCss.value = 'Please enter your Gemini API key first.';
+    outputCss.value = 'Please enter your API key first.';
     return;
   }
 
@@ -147,7 +239,7 @@ ${lastCssAttempted}
 In 3-5 short sentences or bullet points, explain briefly and effectively what is likely wrong and how to fix it. Be direct and practical, no long explanations, no markdown code fences.`;
 
   try {
-    const answer = await callGemini(apiKey, prompt);
+    const answer = await callAI(provider, apiKey, prompt);
     outputCss.value = answer;
     fixItBtn.hidden = false;
   } catch (error) {
@@ -158,16 +250,20 @@ In 3-5 short sentences or bullet points, explain briefly and effectively what is
 
 fixItBtn.addEventListener('click', async () => {
   const apiKey = userApiKey.value.trim();
+  const provider = providerSelect.value;
   const currentCss = inputCss.value;
 
   if (!apiKey) {
-    outputCss.value = 'Please enter your Gemini API key first.';
+    outputCss.value = 'Please enter your API key first.';
     return;
   }
 
   outputCss.classList.remove('has-error', 'has-warning');
   outputCss.value = 'Checking...';
 
+  // Two-mode prompt: the AI must not guess missing values (e.g. "font-size: px;")
+  // since inventing a number could silently change the user's intended design.
+  // Ambiguous cases are reported back for the user to fill in themselves.
   const prompt = `Review this CSS for problems and respond in one of two modes:
 
 MODE A — If it contains one or more declarations with a missing, empty, or ambiguous value (e.g. "font-size: px;", "padding: ;", "margin: solid;") where you cannot safely infer a specific value, do NOT modify or guess it. Instead respond with a short message starting exactly with "MISSING_VALUES:" followed by a bullet list, one line per problem, naming the exact selector/property and what's missing, and ending with a line telling the user to fill in the value(s) in the left box and click "Fix it for me" again. Say nothing else. Example:
@@ -181,7 +277,7 @@ CSS:
 ${currentCss}`;
 
   try {
-    const result = await callGemini(apiKey, prompt);
+    const result = await callAI(provider, apiKey, prompt);
     const trimmed = result.trim();
 
     if (trimmed.startsWith('MISSING_VALUES:')) {
