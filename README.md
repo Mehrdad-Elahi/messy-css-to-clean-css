@@ -45,3 +45,9 @@ Clone the repo and open `index.html` with any static file server (e.g. VS Code's
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Support
+
+If this tool saved you time, consider supporting its development:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mehrdadelahi)
