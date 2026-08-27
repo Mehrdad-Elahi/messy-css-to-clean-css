@@ -2,6 +2,12 @@
 
 A browser-based tool that cleans, validates, and analyzes CSS — powered by your own AI API key (Gemini, OpenAI, or Anthropic). No backend, no account, no shared rate limits: everything runs client-side in your browser.
 
+## Support
+
+If this tool saved you time, consider supporting its development:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mehrdadelahi)
+
 ![Screenshot of Messy CSS to Clean CSS tool](screenshots/screenshots-demo.png)
 
 🔗 **Live demo:** https://mehrdad-elahi.github.io/messy-css-to-clean-css/
@@ -46,9 +52,5 @@ Clone the repo and open `index.html` with any static file server (e.g. VS Code's
 
 MIT — see [LICENSE](LICENSE).
 
-## Support
 
-If this tool saved you time, consider supporting its development:
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mehrdadelahi)
 
